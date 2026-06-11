@@ -49,12 +49,14 @@ function _scmb_git_checkout_shortcuts {
     return $?
   fi
 
-  # If only branch then check if it's a worktree
-  if [[ "$1" =~ ^[0-9]+$ ]]; then
-    local branch_var="${git_env_char}$1"
-    local branch=$(exec_scmb_expand_args echo "${branch_var}")
+  local args
+  eval "args=$(scmb_expand_args "$@")"
 
-    if [ -n "$branch" ]; then
+  # If a single, non-flag branch arg is given, check if it lives in a worktree.
+  if [ "${#args[@]}" -eq 1 ]; then
+    local branch="${args[@]}"
+
+    if [ -n "$branch" ] && [ "${branch#-}" = "$branch" ]; then
       local worktree_path=$($_git_cmd worktree list --porcelain 2>/dev/null | awk -v target_branch="$branch" '
         /^worktree / { path = substr($0, 10); next }
         /^branch / {
@@ -72,7 +74,7 @@ function _scmb_git_checkout_shortcuts {
     fi
   fi
 
-  exec_scmb_expand_args $_git_cmd checkout "$@"
+  _safe_eval "$_git_cmd" checkout "${args[@]}"
 }
 
 __git_alias "$git_branch_alias"              "_scmb_git_branch_shortcuts" ""
