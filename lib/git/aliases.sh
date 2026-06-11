@@ -32,6 +32,8 @@ function git(){
       exec_scmb_expand_args "$_git_cmd" "$@";;
     checkout)
       __scmb_git_checkout_shortcuts "${@:2}";;
+    worktree)
+      __scmb_git_worktree_shortcuts "${@:2}";;
     diff|rm|reset|restore)
       exec_scmb_expand_args --relative "$_git_cmd" "$@";;
     branch)
@@ -163,7 +165,7 @@ if [ "$GIT_SETUP_ALIASES" = "yes" ]; then
   __git_alias "$git_whatchanged_alias"              'git' 'whatchanged'
   __git_alias "$git_apply_alias"                    'git' 'apply'
   __git_alias "$git_switch_alias"                   'git' 'switch'
-  __git_alias "$git_worktree_alias"                 'git' 'worktree'
+  __git_alias "$git_worktree_alias"                 "_scmb_git_worktree_shortcuts" ""
   __git_alias "$git_worktree_add_alias"             'git' 'worktree' 'add'
   __git_alias "$git_worktree_remove_alias"          'git' 'worktree' 'remove'
 
