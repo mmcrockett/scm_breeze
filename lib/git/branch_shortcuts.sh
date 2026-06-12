@@ -85,12 +85,25 @@ function _scmb_git_worktree_shortcuts {
   if [ "$1" = "add" ] && [ -n "$git_worktree_directory" ] && [ "$#" -eq 2 ]; then
     local name="$2"
     if [ -n "$name" ] && [ "${name#-}" = "$name" ]; then
-      local repo_root path
-      repo_root=$($_git_cmd rev-parse --show-toplevel) || return 1
+      local repo_root=$($_git_cmd rev-parse --show-toplevel) || return 1
+      local path
 
       case "$git_worktree_directory" in
+        # Example using repo 'scm_breeze'
+        # - create worktree 'scm_breeze-new-branch-to-work-on' next to 'scm_breeze'
+        # To not have the basename of the repo use '..' instead (or absolute path)
         sibling)
           path="$(dirname "$repo_root")/$(basename "$repo_root")-$name"
+          ;;
+        # Example using repo 'scm_breeze' and 'other_related_repo'
+        # Running 'git worktree add new-branch-to-work-on' in both repos
+        # This helps when you have a feature tha may span multiple repos
+        # - create directory 'new-branch-to-work-on' next to 'scm_breeze'
+        # - create worktree 'scm_breeze' inside 'new-branch-to-work-on'
+        # - create worktree 'other_related_repo' inside 'new-branch-to-work-on'
+        feature)
+          mkdir -p "$(dirname "$repo_root")/$name"
+          path="$(dirname "$repo_root")/$name/$(basename "$repo_root")"
           ;;
         *)
           if [ -d "$git_worktree_directory" ]; then
