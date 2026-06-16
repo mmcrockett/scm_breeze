@@ -24,8 +24,8 @@ if type hub > /dev/null 2>&1; then export _git_cmd="hub"; fi
 # gh is now deprecated, and merged into the `hub` command line tool.
 #if type gh  > /dev/null 2>&1; then export _git_cmd="gh"; fi
 
-# Create 'git' function that calls hub if defined, and expands all numeric arguments
-function git(){
+# Create '_scmb_git' function that calls hub if defined, and expands all numeric arguments
+function _scmb_git(){
   # Only expand args for git commands that deal with paths or branches
   case $1 in
     commit|blame|add|log|rebase|merge|difftool|switch)
@@ -42,6 +42,9 @@ function git(){
       "$_git_cmd" "$@";;
   esac
 }
+
+# Create 'git' function that calls hub if defined, and expands all numeric arguments
+function git(){ _scmb_git "$@"; }
 
 _alias "$git_alias" "git"
 
