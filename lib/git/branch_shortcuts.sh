@@ -87,13 +87,14 @@ function _scmb_git_worktree_shortcuts {
     if [ -n "$name" ] && [ "${name#-}" = "$name" ]; then
       local repo_root=$($_git_cmd rev-parse --show-toplevel) || return 1
       local path
+      local path_name="${name//\//-}"   # keep branch name, sanitize only directory path part
 
       case "$git_worktree_directory" in
         # Example using repo 'scm_breeze'
         # - create worktree 'scm_breeze-new-branch-to-work-on' next to 'scm_breeze'
         # To not have the basename of the repo use '..' instead (or absolute path)
         sibling)
-          path="$(dirname "$repo_root")/$(basename "$repo_root")-$name"
+          path="$(dirname "$repo_root")/$(basename "$repo_root")-$path_name"
           ;;
         # Example using repo 'scm_breeze' and 'other_related_repo'
         # Running 'git worktree add new-branch-to-work-on' in both repos
@@ -102,12 +103,12 @@ function _scmb_git_worktree_shortcuts {
         # - create worktree 'scm_breeze' inside 'new-branch-to-work-on'
         # - create worktree 'other_related_repo' inside 'new-branch-to-work-on'
         feature)
-          mkdir -p "$(dirname "$repo_root")/$name"
-          path="$(dirname "$repo_root")/$name/$(basename "$repo_root")"
+          mkdir -p "$(dirname "$repo_root")/$path_name"
+          path="$(dirname "$repo_root")/$path_name/$(basename "$repo_root")"
           ;;
         *)
           if [ -d "$git_worktree_directory" ]; then
-            path="${git_worktree_directory%/}/$(basename "$repo_root")-$name"
+            path="${git_worktree_directory%/}/$(basename "$repo_root")-$path_name"
           else
             echo "scm_breeze: git_worktree_directory '$git_worktree_directory' is not 'sibling' or an existing directory" >&2
             return 1
