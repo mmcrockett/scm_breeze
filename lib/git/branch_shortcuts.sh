@@ -41,6 +41,30 @@ EOF
   done
 }
 
+function _scmb_git_worktree_path_for_branch {
+  local target_branch="$1"
+  $_git_cmd worktree list --porcelain 2>/dev/null | awk -v target_branch="$target_branch" '
+    /^worktree / { path = substr($0, 10); next }
+    /^branch / {
+      ref = substr($0, 8)
+      sub(/^refs\/heads\//, "", ref)
+      if (ref == target_branch) { print path; exit }
+    }
+  '
+}
+
+function _scmb_git_worktree_path_for_branch {
+  local target_branch="$1"
+  $_git_cmd worktree list --porcelain 2>/dev/null | awk -v target_branch="$target_branch" '
+    /^worktree / { path = substr($0, 10); next }
+    /^branch / {
+      ref = substr($0, 8)
+      sub(/^refs\/heads\//, "", ref)
+      if (ref == target_branch) { print path; exit }
+    }
+  '
+}
+
 function __scmb_git_checkout_shortcuts {
   fail_if_not_git_repo || return 1
 
@@ -57,14 +81,8 @@ function __scmb_git_checkout_shortcuts {
     local branch="${args[@]}"
 
     if [ -n "$branch" ] && [ "${branch#-}" = "$branch" ]; then
-      local worktree_path=$($_git_cmd worktree list --porcelain 2>/dev/null | awk -v target_branch="$branch" '
-        /^worktree / { path = substr($0, 10); next }
-        /^branch / {
-          ref = substr($0, 8)
-          sub(/^refs\/heads\//, "", ref)
-          if (ref == target_branch) { print path; exit }
-        }
-      ')
+      local worktree_path
+      worktree_path=$(_scmb_git_worktree_path_for_branch "$branch")
 
       if [ -n "$worktree_path" ] && [ -d "$worktree_path" ]; then
         echo "Switching to worktree: $worktree_path"
@@ -79,6 +97,21 @@ function __scmb_git_checkout_shortcuts {
 
 function _scmb_git_worktree_shortcuts {
   fail_if_not_git_repo || return 1
+
+  # Translate `worktree remove <branch>` to `worktree remove <path>` by looking
+  # up the branch's worktree. If no worktree is registered for that name, fall
+  # through so native git handles paths or errors as usual.
+  if [ "$1" = "remove" ] && [ "$#" -eq 2 ]; then
+    local name="$2"
+    if [ -n "$name" ] && [ "${name#-}" = "$name" ]; then
+      local worktree_path
+      worktree_path=$(_scmb_git_worktree_path_for_branch "$name")
+      if [ -n "$worktree_path" ]; then
+        _safe_eval "$_git_cmd" worktree remove "$worktree_path"
+        return $?
+      fi
+    fi
+  fi
 
   # Only intervene on:  worktree add <single-non-flag-name>
   # and only when git_worktree_directory selects a placement strategy.
