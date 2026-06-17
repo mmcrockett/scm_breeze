@@ -98,6 +98,13 @@ function __scmb_git_checkout_shortcuts {
 function _scmb_git_worktree_shortcuts {
   fail_if_not_git_repo || return 1
 
+  # Expand numbered shortcuts (e.g. `1` -> `$e1`) so `gwtr 1`, `gwta 1`, etc. work.
+  # Reset positional params from the expanded array so the rest of the function
+  # can keep using $1/$2/$#/"$@" portably across bash and zsh.
+  local args
+  eval "args=$(scmb_expand_args "$@")"
+  set -- "${args[@]}"
+
   # Translate `worktree remove <branch>` to `worktree remove <path>` by looking
   # up the branch's worktree. If no worktree is registered for that name, fall
   # through so native git handles paths or errors as usual.
