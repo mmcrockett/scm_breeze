@@ -41,7 +41,7 @@ EOF
   done
 }
 
-function _scmb_git_worktree_path_for_branch {
+function __scmb_git_worktree_path_for_branch {
   local target_branch="$1"
   $_git_cmd worktree list --porcelain 2>/dev/null | awk -v target_branch="$target_branch" '
     /^worktree / { path = substr($0, 10); next }
@@ -82,7 +82,7 @@ function __scmb_git_checkout_shortcuts {
 
     if [ -n "$branch" ] && [ "${branch#-}" = "$branch" ]; then
       local worktree_path
-      worktree_path=$(_scmb_git_worktree_path_for_branch "$branch")
+      worktree_path=$(__scmb_git_worktree_path_for_branch "$branch")
 
       if [ -n "$worktree_path" ] && [ -d "$worktree_path" ]; then
         echo "Switching to worktree: $worktree_path"
@@ -92,10 +92,10 @@ function __scmb_git_checkout_shortcuts {
     fi
   fi
 
-  _safe_eval "$_git_cmd" checkout "${args[@]}"
+  __safe_eval "$_git_cmd" checkout "${args[@]}"
 }
 
-function _scmb_git_worktree_shortcuts {
+function __scmb_git_worktree_shortcuts {
   fail_if_not_git_repo || return 1
 
   # Expand numbered shortcuts (e.g. `1` -> `$e1`) so `gwtr 1`, `gwta 1`, etc. work.
@@ -112,9 +112,9 @@ function _scmb_git_worktree_shortcuts {
     local name="$2"
     if [ -n "$name" ] && [ "${name#-}" = "$name" ]; then
       local worktree_path
-      worktree_path=$(_scmb_git_worktree_path_for_branch "$name")
+      worktree_path=$(__scmb_git_worktree_path_for_branch "$name")
       if [ -n "$worktree_path" ]; then
-        _safe_eval "$_git_cmd" worktree remove "$worktree_path"
+        __safe_eval "$_git_cmd" worktree remove "$worktree_path"
         return $?
       fi
     fi
@@ -157,15 +157,15 @@ function _scmb_git_worktree_shortcuts {
       esac
 
       if $_git_cmd show-ref --verify --quiet "refs/heads/$name"; then
-        _safe_eval "$_git_cmd" worktree add "$path" "$name"
+        __safe_eval "$_git_cmd" worktree add "$path" "$name"
       else
-        _safe_eval "$_git_cmd" worktree add -b "$name" "$path"
+        __safe_eval "$_git_cmd" worktree add -b "$name" "$path"
       fi
       return $?
     fi
   fi
 
-  _safe_eval "$_git_cmd" worktree "$@"
+  __safe_eval "$_git_cmd" worktree "$@"
 }
 
 function _scmb_git_worktree_shortcuts {
