@@ -69,8 +69,7 @@ function __scmb_git_checkout_shortcuts {
     local branch="${args[@]}"
 
     if [ -n "$branch" ] && [ "${branch#-}" = "$branch" ]; then
-      local worktree_path
-      worktree_path=$(__scmb_git_worktree_path_for_branch "$branch")
+      local worktree_path=$(__scmb_git_worktree_path_for_branch "$branch")
 
       if [ -n "$worktree_path" ] && [ -d "$worktree_path" ]; then
         echo "Switching to worktree: $worktree_path"
@@ -154,43 +153,6 @@ function __scmb_git_worktree_shortcuts {
   fi
 
   __safe_eval "$_git_cmd" worktree "$@"
-}
-
-function _scmb_git_worktree_shortcuts {
-  fail_if_not_git_repo || return 1
-
-  # Only intervene on:  worktree add <single-non-flag-name>
-  # and only when git_worktree_directory selects a placement strategy.
-  if [ "$1" = "add" ] && [ -n "$git_worktree_directory" ] && [ "$#" -eq 2 ]; then
-    local name="$2"
-    if [ -n "$name" ] && [ "${name#-}" = "$name" ]; then
-      local repo_root path
-      repo_root=$($_git_cmd rev-parse --show-toplevel) || return 1
-
-      case "$git_worktree_directory" in
-        sibling)
-          path="$(dirname "$repo_root")/$(basename "$repo_root")-$name"
-          ;;
-        *)
-          if [ -d "$git_worktree_directory" ]; then
-            path="${git_worktree_directory%/}/$(basename "$repo_root")-$name"
-          else
-            echo "scm_breeze: git_worktree_directory '$git_worktree_directory' is not 'sibling' or an existing directory" >&2
-            return 1
-          fi
-          ;;
-      esac
-
-      if $_git_cmd show-ref --verify --quiet "refs/heads/$name"; then
-        _safe_eval "$_git_cmd" worktree add "$path" "$name"
-      else
-        _safe_eval "$_git_cmd" worktree add -b "$name" "$path"
-      fi
-      return $?
-    fi
-  fi
-
-  _safe_eval "$_git_cmd" worktree "$@"
 }
 
 __git_alias "$git_branch_alias"              "__scmb_git_branch_shortcuts" ""
