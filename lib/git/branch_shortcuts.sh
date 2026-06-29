@@ -68,7 +68,7 @@ function __scmb_git_checkout_shortcuts {
   if [ "${#args[@]}" -eq 1 ]; then
     local branch="${args[@]}"
 
-    if [ -n "$branch" ] && [ "${branch#-}" = "$branch" ]; then
+    if __scmb_is_plain_name "$branch"; then
       local worktree_path=$(__scmb_git_worktree_path_for_branch "$branch")
 
       if [ -n "$worktree_path" ] && [ -d "$worktree_path" ]; then
@@ -82,6 +82,55 @@ function __scmb_git_checkout_shortcuts {
   __safe_eval "$_git_cmd" checkout "${args[@]}"
 }
 
+# Compute where `git worktree add <name>` should place its directory, based on
+# $git_worktree_directory. Prints the chosen path; returns non-zero on bad config.
+function __scmb_git_worktree_target_path {
+  local name="$1"
+  local repo_root parent base dir_name path
+  repo_root=$($_git_cmd rev-parse --show-toplevel) || return 1
+  parent="$(dirname "$repo_root")"
+  base="$(basename "$repo_root")"
+  dir_name="${name//\//-}"   # sanitize only the directory portion; keep branch name intact
+
+  case "$git_worktree_directory" in
+    # 'sibling': worktree '<repo>-<name>' placed next to the repo.
+    # To omit the repo basename use '..' instead (or an absolute path).
+    sibling)
+      path="$parent/$base-$dir_name"
+      ;;
+    # 'feature': directory '<name>' next to the repo, with the repo's worktree
+    # nested inside. Lets a feature span multiple repos under one '<name>' dir.
+    feature)
+      mkdir -p "$parent/$dir_name"
+      path="$parent/$dir_name/$base"
+      ;;
+    # otherwise: an explicit existing directory to drop '<repo>-<name>' into.
+    *)
+      if [ -d "$git_worktree_directory" ]; then
+        path="${git_worktree_directory%/}/$base-$dir_name"
+      else
+        echo "scm_breeze: git_worktree_directory '$git_worktree_directory' is not 'sibling' or an existing directory" >&2
+        return 1
+      fi
+      ;;
+  esac
+
+  printf '%s\n' "$path"
+}
+
+# `git worktree add <name>` honoring $git_worktree_directory placement.
+# Creates a new branch when one named <name> doesn't already exist.
+function __scmb_git_worktree_add {
+  local name="$1" path
+  path=$(__scmb_git_worktree_target_path "$name") || return 1
+
+  if $_git_cmd show-ref --verify --quiet "refs/heads/$name"; then
+    __safe_eval "$_git_cmd" worktree add "$path" "$name"
+  else
+    __safe_eval "$_git_cmd" worktree add -b "$name" "$path"
+  fi
+}
+
 function __scmb_git_worktree_shortcuts {
   fail_if_not_git_repo || return 1
 
@@ -92,64 +141,21 @@ function __scmb_git_worktree_shortcuts {
   eval "args=$(scmb_expand_args "$@")"
   set -- "${args[@]}"
 
-  # Translate `worktree remove <branch>` to `worktree remove <path>` by looking
-  # up the branch's worktree. If no worktree is registered for that name, fall
-  # through so native git handles paths or errors as usual.
-  if [ "$1" = "remove" ] && [ "$#" -eq 2 ]; then
-    local name="$2"
-    if [ -n "$name" ] && [ "${name#-}" = "$name" ]; then
-      local worktree_path
-      worktree_path=$(__scmb_git_worktree_path_for_branch "$name")
-      if [ -n "$worktree_path" ]; then
-        __safe_eval "$_git_cmd" worktree remove "$worktree_path"
-        return $?
-      fi
+  # `gwt remove <branch>`: translate a branch name to its worktree path so remove
+  # works by branch. Fall through to native git if no worktree matches that name.
+  if [ "$1" = "remove" ] && [ "$#" -eq 2 ] && __scmb_is_plain_name "$2"; then
+    local worktree_path=$(__scmb_git_worktree_path_for_branch "$2")
+    if [ -n "$worktree_path" ]; then
+      __safe_eval "$_git_cmd" worktree remove "$worktree_path"
+      return $?
     fi
   fi
 
-  # Only intervene on:  worktree add <single-non-flag-name>
-  # and only when git_worktree_directory selects a placement strategy.
-  if [ "$1" = "add" ] && [ -n "$git_worktree_directory" ] && [ "$#" -eq 2 ]; then
-    local name="$2"
-    if [ -n "$name" ] && [ "${name#-}" = "$name" ]; then
-      local repo_root=$($_git_cmd rev-parse --show-toplevel) || return 1
-      local path
-      local path_name="${name//\//-}"   # keep branch name, sanitize only directory path part
-
-      case "$git_worktree_directory" in
-        # Example using repo 'scm_breeze'
-        # - create worktree 'scm_breeze-new-branch-to-work-on' next to 'scm_breeze'
-        # To not have the basename of the repo use '..' instead (or absolute path)
-        sibling)
-          path="$(dirname "$repo_root")/$(basename "$repo_root")-$path_name"
-          ;;
-        # Example using repo 'scm_breeze' and 'other_related_repo'
-        # Running 'git worktree add new-branch-to-work-on' in both repos
-        # This helps when you have a feature tha may span multiple repos
-        # - create directory 'new-branch-to-work-on' next to 'scm_breeze'
-        # - create worktree 'scm_breeze' inside 'new-branch-to-work-on'
-        # - create worktree 'other_related_repo' inside 'new-branch-to-work-on'
-        feature)
-          mkdir -p "$(dirname "$repo_root")/$path_name"
-          path="$(dirname "$repo_root")/$path_name/$(basename "$repo_root")"
-          ;;
-        *)
-          if [ -d "$git_worktree_directory" ]; then
-            path="${git_worktree_directory%/}/$(basename "$repo_root")-$path_name"
-          else
-            echo "scm_breeze: git_worktree_directory '$git_worktree_directory' is not 'sibling' or an existing directory" >&2
-            return 1
-          fi
-          ;;
-      esac
-
-      if $_git_cmd show-ref --verify --quiet "refs/heads/$name"; then
-        __safe_eval "$_git_cmd" worktree add "$path" "$name"
-      else
-        __safe_eval "$_git_cmd" worktree add -b "$name" "$path"
-      fi
-      return $?
-    fi
+  # `gwt add <name>`: place the worktree per $git_worktree_directory instead of
+  # native git's default.
+  if [ "$1" = "add" ] && [ -n "$git_worktree_directory" ] && [ "$#" -eq 2 ] && __scmb_is_plain_name "$2"; then
+    __scmb_git_worktree_add "$2"
+    return $?
   fi
 
   __safe_eval "$_git_cmd" worktree "$@"
