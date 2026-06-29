@@ -53,18 +53,6 @@ function __scmb_git_worktree_path_for_branch {
   '
 }
 
-function _scmb_git_worktree_path_for_branch {
-  local target_branch="$1"
-  $_git_cmd worktree list --porcelain 2>/dev/null | awk -v target_branch="$target_branch" '
-    /^worktree / { path = substr($0, 10); next }
-    /^branch / {
-      ref = substr($0, 8)
-      sub(/^refs\/heads\//, "", ref)
-      if (ref == target_branch) { print path; exit }
-    }
-  '
-}
-
 function __scmb_git_checkout_shortcuts {
   fail_if_not_git_repo || return 1
 
