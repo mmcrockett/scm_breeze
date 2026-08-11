@@ -23,6 +23,7 @@ if [[ -s "$HOME/.git.scmbrc" ]]; then
   source "$HOME/.git.scmbrc"
   source "$scmbDir/lib/git/compatibility.sh"
   source "$scmbDir/lib/git/helpers.sh"
+  source "$scmbDir/lib/git/revision_shortcuts.sh"
   source "$scmbDir/lib/git/aliases.sh"
   source "$scmbDir/lib/git/keybindings.sh"
   source "$scmbDir/lib/git/status_shortcuts.sh"
