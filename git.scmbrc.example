@@ -9,6 +9,14 @@ export GS_MAX_CHANGES="150"
 # - When using the git_add_shortcuts() command, automatically invoke 'git rm' to remove deleted files?
 export GA_AUTO_REMOVE="yes"
 
+# - Set the following option to 'yes' to let 'diff'/'difftool'/'reset'/'blame'
+#   take a '-N' shortcut for revisions N commits back, e.g.
+#     git diff -1   => git diff HEAD~1..HEAD        (last commit's diff)
+#     git diff -3   => git diff HEAD~3..HEAD~2      (the diff 3 commits back)
+#     git reset -1  => git reset HEAD~1
+#     git blame -1  => git blame HEAD~1
+export GIT_REVISION_SHORTCUTS="yes"
+
 # - Set the following option to 'no' if you want to use your existing git aliases
 #   instead of overwriting them.
 #   Note: Bash tab completion will not be automatically set up for your aliases if you disable this option.

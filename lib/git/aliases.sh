@@ -27,13 +27,34 @@ if type hub > /dev/null 2>&1; then export _git_cmd="hub"; fi
 function __scmb_git(){
   # Only expand args for git commands that deal with paths or branches
   case $1 in
-    commit|blame|add|log|rebase|merge|difftool|switch)
+    commit|add|log|rebase|merge|switch)
       exec_scmb_expand_args "$_git_cmd" "$@";;
     checkout)
       __scmb_git_checkout_shortcuts "${@:2}";;
     worktree)
       __scmb_git_worktree_shortcuts "${@:2}";;
-    diff|rm|reset|restore)
+    diff|difftool)
+      if [ "$GIT_REVISION_SHORTCUTS" = "yes" ]; then
+        local revargs
+        eval "revargs=$(__scmb_expand_revisions range "$@")"
+        set -- "${revargs[@]}"
+      fi
+      exec_scmb_expand_args --relative "$_git_cmd" "$@";;
+    reset)
+      if [ "$GIT_REVISION_SHORTCUTS" = "yes" ]; then
+        local revargs
+        eval "revargs=$(__scmb_expand_revisions rev "$@")"
+        set -- "${revargs[@]}"
+      fi
+      exec_scmb_expand_args --relative "$_git_cmd" "$@";;
+    blame)
+      if [ "$GIT_REVISION_SHORTCUTS" = "yes" ]; then
+        local revargs
+        eval "revargs=$(__scmb_expand_revisions rev "$@")"
+        set -- "${revargs[@]}"
+      fi
+      exec_scmb_expand_args "$_git_cmd" "$@";;
+    rm|restore)
       exec_scmb_expand_args --relative "$_git_cmd" "$@";;
     branch)
       __scmb_git_branch_shortcuts "${@:2}";;
