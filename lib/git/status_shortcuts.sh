@@ -130,24 +130,31 @@ scmb_expand_args() {
   args=() # initially empty array. zsh 5.0.2 from Ubuntu 14.04 requires this to be separated
   local prev_arg=""
   for arg in "$@"; do
-    # Skip expansion if previous arg was a flag expecting an integer value.
-    # Without this, "git log -n 30" would try to expand "30" to "$e30" (a file shortcut),
-    # which fails with "fatal: '': not an integer" when $e30 is empty.
+    # Skip expansion if previous arg was a "bare" flag (dashes + letters only,
+    # e.g. -n, -maxdepth) still expecting its value. File shortcuts are always
+    # bare positional args (ga 1, gd 2-4) - never a flag's value - so a number
+    # following any such flag (git log -n 30, find -maxdepth 1) is always a
+    # literal, not a file shortcut. A flag that already has its value fused
+    # in (e.g. -n3) is a complete token, so it does NOT suppress the next arg.
     local skip_expand=0
-    if [[ "$prev_arg" =~ ^-[nCAB]$ ]] ||
-      [[ "$prev_arg" =~ ^--(max-count|skip|depth)$ ]]; then
+    if [[ "$prev_arg" =~ ^-+[A-Za-z-]+$ ]]; then
       skip_expand=1
     fi
 
     if [[ $skip_expand -eq 1 ]]; then
       # Don't expand - this is an integer argument for a flag
       args+=("$arg")
-    elif [[ "$arg" =~ ^[0-9]{0,4}$ ]]; then # Substitute $e{*} variables for any integers
+    elif [[ "$arg" =~ ^[0-9]{1,4}$ ]]; then # Substitute $e{*} variables for any integers
       if [ -e "$arg" ]; then
         # Don't expand files or directories with numeric names
         args+=("$arg")
       else
-        args+=("$(_print_path "$relative" "$GIT_ENV_CHAR$arg")")
+        local expanded
+        expanded="$(_print_path "$relative" "$GIT_ENV_CHAR$arg")"
+        # Shortcut var unset (e.g. no active git-status shortcuts) -> keep the
+        # literal digits instead of clobbering them with an empty string.
+        # This is what breaks unrelated commands like `find . -maxdepth 1`.
+        args+=("${expanded:-$arg}")
       fi
     elif [[ "$arg" =~ ^[0-9]+-[0-9]+$ ]]; then # Expand ranges into $e{*} variables
       for i in $(eval echo {${arg/-/..}}); do
