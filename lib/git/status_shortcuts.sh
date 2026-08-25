@@ -135,6 +135,7 @@ scmb_expand_args() {
     # which fails with "fatal: '': not an integer" when $e30 is empty.
     local skip_expand=0
     if [[ "$prev_arg" =~ ^-[nCAB]$ ]] ||
+      [[ "$prev_arg" =~ ^-(maxdepth|mindepth)$ ]] ||
       [[ "$prev_arg" =~ ^--(max-count|skip|depth)$ ]]; then
       skip_expand=1
     fi
@@ -142,12 +143,16 @@ scmb_expand_args() {
     if [[ $skip_expand -eq 1 ]]; then
       # Don't expand - this is an integer argument for a flag
       args+=("$arg")
-    elif [[ "$arg" =~ ^[0-9]{0,4}$ ]]; then # Substitute $e{*} variables for any integers
+    elif [[ "$arg" =~ ^[0-9]{1,4}$ ]]; then # Substitute $e{*} variables for any integers
       if [ -e "$arg" ]; then
         # Don't expand files or directories with numeric names
         args+=("$arg")
       else
-        args+=("$(_print_path "$relative" "$GIT_ENV_CHAR$arg")")
+        local expanded
+        expanded="$(_print_path "$relative" "$GIT_ENV_CHAR$arg")"
+        # Fall back to the literal digits if the shortcut var is unset,
+        # rather than clobbering them with an empty string.
+        args+=("${expanded:-$arg}")
       fi
     elif [[ "$arg" =~ ^[0-9]+-[0-9]+$ ]]; then # Expand ranges into $e{*} variables
       for i in $(eval echo {${arg/-/..}}); do

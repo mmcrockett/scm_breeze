@@ -126,6 +126,17 @@ test_scmb_expand_args() {
       eval args="$(scmb_expand_args --max-count 1 3 6)"
       token_quote "${args[@]}"
     )"
+  assertEquals "$error" '-maxdepth 1 three six' \
+    "$(
+      eval args="$(scmb_expand_args -maxdepth 1 3 6)"
+      token_quote "${args[@]}"
+    )"
+  # Boolean flags (no value) must NOT suppress expansion of the next arg.
+  assertEquals "$error" '-rf one three six' \
+    "$(
+      eval args="$(scmb_expand_args -rf 1 3 6)"
+      token_quote "${args[@]}"
+    )"
 
   # Keep this code for use when minimum versions of {ba,z}sh can be increased.
   # See token_quote() source and https://github.com/scmbreeze/scm_breeze/issues/260
